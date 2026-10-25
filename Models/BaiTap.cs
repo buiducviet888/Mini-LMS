@@ -25,5 +25,6 @@ public partial class BaiTap
 
     public virtual ICollection<CauHoi> CauHois { get; set; } = new List<CauHoi>();
 
-    public virtual KhoaHoc IdKhoaHocNavigation { get; set; } = null!;
+    // Đổi thành nullable để không bị lỗi validation khi nhận JSON
+    public virtual KhoaHoc? IdKhoaHocNavigation { get; set; }
 }

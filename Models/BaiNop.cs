@@ -23,7 +23,7 @@ public partial class BaiNop
 
     public virtual ICollection<ChiTietTraLoi> ChiTietTraLois { get; set; } = new List<ChiTietTraLoi>();
 
-    public virtual BaiTap IdBaiTapNavigation { get; set; } = null!;
+    public virtual BaiTap? IdBaiTapNavigation { get; set; }
 
-    public virtual NguoiDung IdSinhVienNavigation { get; set; } = null!;
+    public virtual NguoiDung? IdSinhVienNavigation { get; set; }
 }

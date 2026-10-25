@@ -4,12 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mini LMS EduConnect - Không gian Giảng viên</title>
+
+    <!-- CHỐT CHẶN BẢO VỆ: ĐẢM BẢO CHỈ GIẢNG VIÊN MỚI ĐƯỢC VÀO -->
+    <script>
+        (function () {
+            var raw = localStorage.getItem('currentUser');
+            if (!raw) {
+                window.location.replace('/login.html');
+                return;
+            }
+            try {
+                var u = JSON.parse(raw);
+                var r = (u.vaiTro || u.vai_tro || u.role || '').toString().toUpperCase().trim();
+                if (r.indexOf('ADMIN') !== -1 || r.indexOf('QUAN_TRI') !== -1) {
+                    window.location.replace('/index.html');
+                } else if (r.indexOf('SINH_VIEN') !== -1 || r.indexOf('SINHVIEN') !== -1 || r === 'SV') {
+                    window.location.replace('/sinhvien.html');
+                }
+            } catch (e) {
+                localStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+            }
+        })();
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         body {
             background-color: #f8fafc;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #334155;
         }
 
         .sidebar {
@@ -21,13 +46,14 @@
             .sidebar .nav-link {
                 color: #94a3b8;
                 font-weight: 500;
-                margin-bottom: 4px;
+                margin-bottom: 6px;
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s;
                 text-decoration: none;
                 display: flex;
                 align-items: center;
+                padding: 10px 14px;
             }
 
                 .sidebar .nav-link:hover, .sidebar .nav-link.active {
@@ -39,6 +65,13 @@
             border-radius: 12px;
             border: none;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .filter-panel {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
         }
     </style>
 </head>
@@ -92,7 +125,7 @@
                             <i class="bi bi-person-workspace me-1"></i> Giảng viên trực tuyến
                         </span>
                         <div class="text-end">
-                            <div class="fw-bold" id="gvDisplayName">Nguyễn Văn An</div>
+                            <div class="fw-bold" id="gvDisplayName">Giảng viên</div>
                             <small class="badge bg-primary">Giảng viên</small>
                         </div>
                     </div>
@@ -106,7 +139,7 @@
                                 <div class="d-flex justify-content-between">
                                     <div>
                                         <span class="text-muted small">Khóa học phụ trách</span>
-                                        <h4 class="fw-bold mt-1" id="statCourseCount">2</h4>
+                                        <h4 class="fw-bold mt-1" id="statCourseCount">0</h4>
                                     </div>
                                     <div class="bg-primary-subtle text-primary p-3 rounded-3"><i class="bi bi-journal-check fs-4"></i></div>
                                 </div>
@@ -117,7 +150,7 @@
                                 <div class="d-flex justify-content-between">
                                     <div>
                                         <span class="text-muted small">Bài tập đã giao</span>
-                                        <h4 class="fw-bold mt-1" id="statAssignmentCount">3</h4>
+                                        <h4 class="fw-bold mt-1" id="statAssignmentCount">0</h4>
                                     </div>
                                     <div class="bg-warning-subtle text-warning p-3 rounded-3"><i class="bi bi-card-checklist fs-4"></i></div>
                                 </div>
@@ -128,7 +161,7 @@
                                 <div class="d-flex justify-content-between">
                                     <div>
                                         <span class="text-muted small">Bài nộp chờ chấm</span>
-                                        <h4 class="fw-bold mt-1 text-danger" id="statPendingCount">5</h4>
+                                        <h4 class="fw-bold mt-1 text-danger" id="statPendingCount">0</h4>
                                     </div>
                                     <div class="bg-danger-subtle text-danger p-3 rounded-3"><i class="bi bi-hourglass-split fs-4"></i></div>
                                 </div>
@@ -138,9 +171,9 @@
 
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                            <h5 class="m-0 fw-bold">Danh sách Lớp học đang phụ trách</h5>
-                            <button class="btn btn-primary btn-sm rounded-2" data-bs-toggle="modal" data-bs-target="#modalAddLesson">
-                                <i class="bi bi-plus-circle me-1"></i> Tải bài giảng / Slide mới
+                            <h5 class="m-0 fw-bold">Danh sách Lớp học đang phụ trách (Theo CSDL)</h5>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="loadInstructorDashboard()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
                             </button>
                         </div>
                         <div class="table-responsive">
@@ -150,38 +183,13 @@
                                         <th>Mã lớp</th>
                                         <th>Tên môn học</th>
                                         <th>Học kỳ</th>
-                                        <th>Số sinh viên</th>
+                                        <th>Số sinh viên đăng ký</th>
                                         <th>Thao tác nghiệp vụ</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="instructorCoursesBody">
                                     <tr>
-                                        <td><span class="badge bg-secondary-subtle text-dark">QLDAPM01</span></td>
-                                        <td class="fw-semibold">Quản lý Dự án Phần mềm</td>
-                                        <td>HK1-2026</td>
-                                        <td><strong>45</strong> sinh viên</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="switchTabGV('giaobaitap', document.querySelectorAll('.sidebar .nav-link')[1])">
-                                                <i class="bi bi-pencil me-1"></i>Giao bài
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-success" onclick="switchTabGV('chamdiem', document.querySelectorAll('.sidebar .nav-link')[2])">
-                                                <i class="bi bi-journal-check me-1"></i>Xem bài nộp
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="badge bg-secondary-subtle text-dark">CSDL02</span></td>
-                                        <td class="fw-semibold">Hệ quản trị Cơ sở dữ liệu SQL Server</td>
-                                        <td>HK1-2026</td>
-                                        <td><strong>52</strong> sinh viên</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="switchTabGV('giaobaitap', document.querySelectorAll('.sidebar .nav-link')[1])">
-                                                <i class="bi bi-pencil me-1"></i>Giao bài
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-success" onclick="switchTabGV('chamdiem', document.querySelectorAll('.sidebar .nav-link')[2])">
-                                                <i class="bi bi-journal-check me-1"></i>Xem bài nộp
-                                            </button>
-                                        </td>
+                                        <td colspan="5" class="text-center py-4 text-muted">Đang tải danh sách lớp giảng dạy...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -202,19 +210,19 @@
                                         <div class="mb-3">
                                             <label class="form-label small fw-semibold">Chọn lớp học *</label>
                                             <select class="form-select" id="as_course" required>
-                                                <option value="1">QLDAPM01 - Quản lý Dự án Phần mềm</option>
-                                                <option value="2">CSDL02 - Hệ quản trị Cơ sở dữ liệu SQL Server</option>
+                                                <option value="">Đang tải lớp học...</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label small fw-semibold">Tiêu đề bài tập *</label>
-                                            <input type="text" class="form-control" id="as_title" placeholder="Ví dụ: Đồ án giai đoạn WBS & Trello" required>
+                                            <input type="text" class="form-control" id="as_title" placeholder="Ví dụ: Báo cáo WBS & Trello Kanban" required>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label small fw-semibold">Hình thức nộp bài *</label>
                                             <select class="form-select" id="as_type" required>
                                                 <option value="NOP_FILE">Nộp tệp tin báo cáo (PDF, ZIP, DOCX)</option>
                                                 <option value="TRAC_NGHIEM">Bài thi trắc nghiệm trực tuyến</option>
+                                                <option value="TU_LUAN">Tự luận trực tuyến</option>
                                             </select>
                                         </div>
                                         <div class="row g-2 mb-3">
@@ -232,7 +240,7 @@
                                             <textarea class="form-control" id="as_desc" rows="3" placeholder="Ghi chú các tiêu chí đánh giá cho sinh viên..."></textarea>
                                         </div>
                                         <button type="submit" class="btn btn-primary w-100">
-                                            <i class="bi bi-send me-1"></i> Công bố bài tập
+                                            <i class="bi bi-send me-1"></i> Lưu & Công bố bài tập vào CSDL
                                         </button>
                                     </form>
                                 </div>
@@ -241,31 +249,26 @@
 
                         <div class="col-lg-7">
                             <div class="card border-0 shadow-sm rounded-3">
-                                <div class="card-header bg-white py-3 border-0">
+                                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                                     <h5 class="m-0 fw-bold">Danh sách Bài tập đã giao</h5>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="loadInstructorAssignments()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+                                    </button>
                                 </div>
                                 <div class="table-responsive">
                                     <table class="table table-hover align-middle mb-0">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Tiêu đề</th>
-                                                <th>Môn</th>
+                                                <th>Môn học</th>
                                                 <th>Hạn nộp</th>
-                                                <th>Điểm</th>
+                                                <th>Điểm tối đa</th>
+                                                <th>Số bài nộp</th>
                                             </tr>
                                         </thead>
                                         <tbody id="assignedListTable">
                                             <tr>
-                                                <td class="fw-semibold">Báo cáo WBS & Trello Kanban</td>
-                                                <td><span class="badge bg-secondary-subtle text-dark">QLDAPM01</span></td>
-                                                <td class="text-danger fw-semibold">23:59 30/10/2026</td>
-                                                <td>10.0</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="fw-semibold">Sơ đồ mạng AOA & Đường găng CPM</td>
-                                                <td><span class="badge bg-secondary-subtle text-dark">QLDAPM01</span></td>
-                                                <td class="text-danger fw-semibold">23:59 05/11/2026</td>
-                                                <td>10.0</td>
+                                                <td colspan="5" class="text-center py-4 text-muted">Đang tải danh sách bài tập...</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -275,67 +278,63 @@
                     </div>
                 </div>
 
-                <!-- SECTION 3: CHẤM ĐIỂM BÀI NỘP -->
+                <!-- SECTION 3: CHẤM ĐIỂM BÀI NỘP (CÓ BỘ LỌC THÔNG MINH) -->
                 <div id="section-chamdiem" style="display: none;">
+                    <!-- BỘ LỌC TÌM KIẾM THEO MÔN VÀ TRẠNG THÁI -->
+                    <div class="filter-panel mb-4 shadow-sm">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-funnel me-1"></i>Chọn lớp / Môn học:</label>
+                                <select class="form-select form-select-sm" id="filter_course" onchange="applySubmissionFilter()">
+                                    <option value="">-- Xem tất cả các lớp --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-check2-all me-1"></i>Trạng thái chấm:</label>
+                                <select class="form-select form-select-sm" id="filter_status" onchange="applySubmissionFilter()">
+                                    <option value="ALL">Tất cả bài nộp</option>
+                                    <option value="PENDING">Chờ chấm điểm</option>
+                                    <option value="GRADED">Đã chấm điểm</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-search me-1"></i>Tìm theo tên sinh viên hoặc bài tập:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="filter_search" placeholder="Nhập tên SV, MSSV, tiêu đề bài..." oninput="applySubmissionFilter()">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('filter_search').value=''; applySubmissionFilter();">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BẢNG DANH SÁCH BÀI NỘP -->
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                            <h5 class="m-0 fw-bold">Danh sách Bài làm sinh viên nộp</h5>
-                            <span class="badge bg-warning-subtle text-warning">Cần chấm: 2 bài mới</span>
+                            <div>
+                                <h5 class="m-0 fw-bold">Danh sách Bài làm sinh viên nộp</h5>
+                                <small class="text-muted" id="filterResultCount">Hiển thị 0 bài nộp</small>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="loadSubmissionsToGrade()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Làm mới danh sách
+                            </button>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Sinh viên</th>
-                                        <th>Bài tập</th>
+                                        <th>Bài tập / Môn</th>
                                         <th>Thời gian nộp</th>
                                         <th>Tệp bài nộp</th>
                                         <th>Điểm số</th>
                                         <th>Thao tác</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="submissionsTableBody">
                                     <tr>
-                                        <td>
-                                            <div class="fw-bold">Lê Minh Khôi</div>
-                                            <small class="text-muted">MSSV: SV202601</small>
-                                        </td>
-                                        <td class="fw-semibold">Báo cáo WBS & Trello Kanban</td>
-                                        <td><span class="badge bg-success-subtle text-success">Đúng hạn (29/10 20:15)</span></td>
-                                        <td>
-                                            <a href="#" class="btn btn-sm btn-outline-secondary">
-                                                <i class="bi bi-file-earmark-pdf me-1"></i>BaoCao_Nhom8.pdf
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary" id="score_sv1">Chưa chấm</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-primary" onclick="openGradeModal('Lê Minh Khôi', 'Báo cáo WBS & Trello Kanban', 'score_sv1')">
-                                                <i class="bi bi-pencil-square me-1"></i>Chấm điểm
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="fw-bold">Trần Quốc Bảo</div>
-                                            <small class="text-muted">MSSV: SV202605</small>
-                                        </td>
-                                        <td class="fw-semibold">Báo cáo WBS & Trello Kanban</td>
-                                        <td><span class="badge bg-success-subtle text-success">Đúng hạn (30/10 14:02)</span></td>
-                                        <td>
-                                            <a href="#" class="btn btn-sm btn-outline-secondary">
-                                                <i class="bi bi-file-earmark-zip me-1"></i>SourceCode_Bao.zip
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success" id="score_sv2">9.5</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="openGradeModal('Trần Quốc Bảo', 'Báo cáo WBS & Trello Kanban', 'score_sv2', 9.5, 'Sơ đồ WBS chi tiết, đúng chuẩn 4 cấp độ!')">
-                                                <i class="bi bi-pencil me-1"></i>Sửa điểm
-                                            </button>
-                                        </td>
+                                        <td colspan="6" class="text-center py-4 text-muted">Đang tải danh sách bài nộp của sinh viên...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -352,8 +351,8 @@
                         <div class="list-group list-group-flush">
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold text-primary">Sinh viên: Lê Minh Khôi (Lớp QLDAPM01)</span>
-                                    <small class="text-muted">2 giờ trước</small>
+                                    <span class="fw-bold text-primary">Sinh viên: Lê Minh Khôi (Lớp INT100)</span>
+                                    <small class="text-muted">Hôm nay</small>
                                 </div>
                                 <p class="mb-2">Thầy cho em hỏi phần sơ đồ CPM nếu có 2 đường đi cùng độ dài thời gian lớn nhất thì cả 2 đều là đường găng đúng không ạ?</p>
                                 <div class="p-3 bg-light rounded-3 ms-4 border-start border-primary border-3">
@@ -372,13 +371,14 @@
     <!-- MODAL CHẤM ĐIỂM SINH VIÊN -->
     <div class="modal fade" id="modalGrade" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Chấm điểm & Nhận xét bài làm</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-check2-circle me-2"></i>Chấm Điểm & Nhận Xét Bài Nộp</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="formGrade" onsubmit="saveGrade(event)">
                     <div class="modal-body">
+                        <input type="hidden" id="gr_submission_id">
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Sinh viên</label>
                             <input type="text" class="form-control bg-light" id="gr_student" readonly>
@@ -393,51 +393,12 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Lời nhận xét / Đánh giá của Giảng viên</label>
-                            <textarea class="form-control" id="gr_feedback" rows="3" placeholder="Nhận xét ưu điểm, thiếu sót để sinh viên cải thiện..."></textarea>
+                            <textarea class="form-control" id="gr_feedback" rows="3" placeholder="Ghi chú đánh giá, nhắc nhở để sinh viên tiến bộ..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
-                        <button type="submit" class="btn btn-primary">Lưu kết quả chấm</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL THÊM BÀI GIẢNG / TÀI LIỆU -->
-    <div class="modal fade" id="modalAddLesson" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Đăng tải Bài giảng mới</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form id="formAddLesson" onsubmit="handleAddLesson(event)">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Chọn lớp học *</label>
-                            <select class="form-select" required>
-                                <option value="1">QLDAPM01 - Quản lý Dự án Phần mềm</option>
-                                <option value="2">CSDL02 - Hệ quản trị Cơ sở dữ liệu SQL Server</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Tên bài giảng / Chương mục *</label>
-                            <input type="text" class="form-control" placeholder="Ví dụ: Chương 3 - Phân rã WBS & Lập tiến độ" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Đính kèm tệp Slide bài giảng (PDF / PPTX)</label>
-                            <input type="file" class="form-control">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Liên kết Video bài giảng (nếu có)</label>
-                            <input type="url" class="form-control" placeholder="https://youtube.com/...">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                        <button type="submit" class="btn btn-primary">Tải lên</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Lưu Kết Quả Vào CSDL</button>
                     </div>
                 </form>
             </div>
@@ -446,18 +407,32 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let currentInstructorId = 2; // Mặc định ID giảng viên nếu session chưa có
+        let instructorCourses = [];
+        let allSubmissions = []; // Lưu toàn bộ bài nộp để lọc mượt mà trên giao diện
+
         // 1. Kiểm tra session đăng nhập Giảng viên
-        const sessionUser = localStorage.getItem('currentUser');
-        if (sessionUser) {
-            try {
-                const user = JSON.parse(sessionUser);
-                if (user.hoVaTen || user.tenDangNhap) {
-                    document.getElementById('gvDisplayName').innerText = user.hoVaTen || user.tenDangNhap;
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = localStorage.getItem('currentUser');
+            if (sessionUser) {
+                try {
+                    const user = JSON.parse(sessionUser);
+                    currentInstructorId = user.id || 2;
+                    if (user.hoVaTen || user.tenDangNhap) {
+                        document.getElementById('gvDisplayName').innerText = user.hoVaTen || user.tenDangNhap;
+                    }
+                } catch (e) {
+                    console.log('Lỗi đọc session Giảng viên');
                 }
-            } catch (e) {
-                console.log('Lỗi đọc session Giảng viên');
             }
-        }
+
+            const d = new Date();
+            d.setDate(d.getDate() + 7);
+            d.setHours(23, 59, 0, 0);
+            document.getElementById('as_deadline').value = d.toISOString().slice(0, 16);
+
+            loadInstructorDashboard();
+        });
 
         // 2. Chuyển đổi Tab Sidebar Giảng viên
         function switchTabGV(tab, element) {
@@ -480,72 +455,314 @@
                 'diendan': 'Diễn đàn Thảo luận Sinh viên'
             };
             document.getElementById('gvHeaderTitle').innerText = titles[tab] || 'Không gian Giảng viên';
+
+            if (tab === 'giaobaitap') loadInstructorAssignments();
+            if (tab === 'chamdiem') loadSubmissionsToGrade();
         }
 
-        // 3. Xử lý Giao bài tập mới
-        function handleCreateAssignment(e) {
+        // 3. Tải thông tin Dashboard & Lớp phụ trách từ CSDL
+        async function loadInstructorDashboard() {
+            try {
+                const res = await fetch('/api/KhoaHocs');
+                if (res.ok) {
+                    const allCourses = await res.json();
+                    instructorCourses = allCourses.filter(c => c.idGiangVien == currentInstructorId);
+
+                    document.getElementById('statCourseCount').innerText = instructorCourses.length;
+
+                    const tbody = document.getElementById('instructorCoursesBody');
+                    tbody.innerHTML = '';
+
+                    const select = document.getElementById('as_course');
+                    const filterCourseSelect = document.getElementById('filter_course');
+                    select.innerHTML = '';
+                    filterCourseSelect.innerHTML = '<option value="">-- Xem tất cả các lớp --</option>';
+
+                    if (instructorCourses.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Bạn chưa được phân công phụ trách môn học nào.</td></tr>';
+                        select.innerHTML = '<option value="">-- Chưa có lớp học phụ trách --</option>';
+                    } else {
+                        instructorCourses.forEach(c => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                        <td><span class="badge bg-secondary-subtle text-dark fw-bold">${c.maKhoaHoc}</span></td>
+                                        <td class="fw-semibold">${c.tenKhoaHoc}</td>
+                                        <td>${c.hocKy}</td>
+                                        <td><strong>${c.soLuongSinhVien || 0}</strong> sinh viên</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="selectCourseToAssign(${c.id})">
+                                                <i class="bi bi-pencil me-1"></i>Giao bài
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="viewSubmissionsForCourse('${c.maKhoaHoc}')">
+                                                <i class="bi bi-check2-circle me-1"></i>Xem bài nộp
+                                            </button>
+                                        </td>
+                                    `;
+                            tbody.appendChild(tr);
+
+                            // Đổ vào dropdown Giao bài
+                            const opt = document.createElement('option');
+                            opt.value = c.id;
+                            opt.innerText = `${c.maKhoaHoc} - ${c.tenKhoaHoc}`;
+                            select.appendChild(opt);
+
+                            // Đổ vào dropdown Bộ lọc bài nộp
+                            const filterOpt = document.createElement('option');
+                            filterOpt.value = c.maKhoaHoc;
+                            filterOpt.innerText = `${c.maKhoaHoc} - ${c.tenKhoaHoc}`;
+                            filterCourseSelect.appendChild(filterOpt);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi nạp lớp học:", e);
+            }
+
+            loadInstructorAssignments();
+            loadSubmissionsToGrade();
+        }
+
+        // Bấm nút "Xem bài nộp" ngay tại bảng Lớp học để chuyển sang tab chấm điểm có lọc sẵn
+        function viewSubmissionsForCourse(courseCode) {
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            switchTabGV('chamdiem', navLinks[2]);
+            document.getElementById('filter_course').value = courseCode;
+            applySubmissionFilter();
+        }
+
+        function selectCourseToAssign(courseId) {
+            switchTabGV('giaobaitap', document.querySelectorAll('.sidebar .nav-link')[1]);
+            document.getElementById('as_course').value = courseId;
+        }
+
+        // 4. Xử lý Giao bài tập mới (Lưu trực tiếp vào bảng bai_tap)
+        async function handleCreateAssignment(e) {
             e.preventDefault();
-            const title = document.getElementById('as_title').value.trim();
-            const courseText = document.getElementById('as_course').options[document.getElementById('as_course').selectedIndex].text.split(' - ')[0];
-            const deadline = new Date(document.getElementById('as_deadline').value).toLocaleString('vi-VN');
-            const maxPoint = document.getElementById('as_maxpoint').value;
+            const courseVal = document.getElementById('as_course').value;
+            if (!courseVal) {
+                alert('Vui lòng chọn lớp học!');
+                return;
+            }
 
-            const tbody = document.getElementById('assignedListTable');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                        <td class="fw-semibold">${title}</td>
-                        <td><span class="badge bg-secondary-subtle text-dark">${courseText}</span></td>
-                        <td class="text-danger fw-semibold">${deadline}</td>
-                        <td>${maxPoint}</td>
-                    `;
-            tbody.prepend(tr);
+            const payload = {
+                idKhoaHoc: parseInt(courseVal),
+                tieuDe: document.getElementById('as_title').value.trim(),
+                loaiBaiTap: document.getElementById('as_type').value,
+                diemToiDa: parseFloat(document.getElementById('as_maxpoint').value),
+                hanNop: document.getElementById('as_deadline').value,
+                moTa: document.getElementById('as_desc').value.trim()
+            };
 
-            alert('Đã công bố bài tập mới thành công đến sinh viên!');
-            document.getElementById('createAssignmentForm').reset();
+            try {
+                const res = await fetch('/api/BaiTaps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert('Công bố bài tập mới vào CSDL thành công!');
+                    document.getElementById('createAssignmentForm').reset();
+                    const d = new Date();
+                    d.setDate(d.getDate() + 7);
+                    d.setHours(23, 59, 0, 0);
+                    document.getElementById('as_deadline').value = d.toISOString().slice(0, 16);
+                    loadInstructorAssignments();
+                } else {
+                    const err = await res.json().catch(() => null);
+                    alert((err && err.message) ? err.message : 'Không thể lưu bài tập!');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối máy chủ!');
+            }
         }
 
-        // 4. Mở Modal Chấm điểm
-        let currentScoreTargetId = null;
-        function openGradeModal(student, assignment, targetId, oldScore = '', oldFeedback = '') {
-            currentScoreTargetId = targetId;
+        // 5. Tải danh sách bài tập đã giao
+        async function loadInstructorAssignments() {
+            try {
+                const res = await fetch('/api/BaiTaps');
+                if (res.ok) {
+                    const allAssignments = await res.json();
+                    const myCourseIds = instructorCourses.map(c => c.id);
+                    const myAssignments = allAssignments.filter(a => myCourseIds.includes(a.idKhoaHoc));
+
+                    document.getElementById('statAssignmentCount').innerText = myAssignments.length;
+                    const tbody = document.getElementById('assignedListTable');
+                    tbody.innerHTML = '';
+
+                    if (myAssignments.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Chưa có bài tập nào được giao.</td></tr>';
+                        return;
+                    }
+
+                    myAssignments.forEach(a => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                                    <td class="fw-semibold">${a.tieuDe}</td>
+                                    <td><span class="badge bg-secondary-subtle text-dark">${a.maKhoaHoc || ('Môn ID: ' + a.idKhoaHoc)}</span></td>
+                                    <td class="text-danger fw-semibold">${new Date(a.hanNop).toLocaleString('vi-VN')}</td>
+                                    <td>${a.diemToiDa || 10.0}</td>
+                                    <td><span class="badge bg-primary-subtle text-primary">${a.soLuongBaiNop || 0} bài</span></td>
+                                `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (e) {
+                console.error("Lỗi nạp bài tập:", e);
+            }
+        }
+
+        // 6. Tải toàn bộ bài nộp của giảng viên từ CSDL
+        async function loadSubmissionsToGrade() {
+            const tbody = document.getElementById('submissionsTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải danh sách bài nộp...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/BaiNops/giang-vien/${currentInstructorId}`);
+                if (res.ok) {
+                    allSubmissions = await res.json();
+
+                    // Cập nhật số bài chờ chấm trên card thống kê
+                    const pendingCount = allSubmissions.filter(s => s.tongDiem === null || s.tongDiem === undefined).length;
+                    document.getElementById('statPendingCount').innerText = pendingCount;
+
+                    // Tiến hành lọc và hiển thị ra bảng
+                    applySubmissionFilter();
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Không thể tải danh sách bài nộp từ máy chủ!</td></tr>';
+                }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Lỗi kết nối máy chủ!</td></tr>';
+            }
+        }
+
+        // 7. Hàm lọc động danh sách bài nộp theo Môn học, Trạng thái và Từ khóa
+        function applySubmissionFilter() {
+            const selectedCourse = document.getElementById('filter_course').value.trim();
+            const selectedStatus = document.getElementById('filter_status').value;
+            const keyword = document.getElementById('filter_search').value.toLowerCase().trim();
+
+            let filtered = allSubmissions.filter(s => {
+                // 1. Lọc theo mã môn
+                if (selectedCourse && s.maKhoaHoc !== selectedCourse) return false;
+
+                // 2. Lọc theo trạng thái
+                const isGraded = (s.tongDiem !== null && s.tongDiem !== undefined);
+                if (selectedStatus === 'PENDING' && isGraded) return false;
+                if (selectedStatus === 'GRADED' && !isGraded) return false;
+
+                // 3. Lọc theo từ khóa tìm kiếm (tên SV, tài khoản, tiêu đề bài tập)
+                if (keyword) {
+                    const studentName = (s.tenSinhVien || '').toLowerCase();
+                    const username = (s.tenDangNhap || '').toLowerCase();
+                    const assignTitle = (s.tieuDeBaiTap || '').toLowerCase();
+                    if (!studentName.includes(keyword) && !username.includes(keyword) && !assignTitle.includes(keyword)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            renderSubmissionsTable(filtered);
+        }
+
+        // 8. Vẽ bảng dữ liệu sau khi lọc
+        function renderSubmissionsTable(submissions) {
+            const tbody = document.getElementById('submissionsTableBody');
+            document.getElementById('filterResultCount').innerText = `Hiển thị ${submissions.length} / ${allSubmissions.length} bài nộp`;
+
+            tbody.innerHTML = '';
+            if (submissions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-1"></i>Không tìm thấy bài nộp nào phù hợp với bộ lọc.</td></tr>';
+                return;
+            }
+
+            submissions.forEach(s => {
+                const hasGrade = (s.tongDiem !== null && s.tongDiem !== undefined);
+                const fileName = s.duongDanFile ? s.duongDanFile.split('/').pop() : 'Tệp nộp';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                            <td>
+                                <div class="fw-bold text-dark">${s.tenSinhVien || 'Sinh viên'}</div>
+                                <small class="text-muted"><i class="bi bi-person me-1"></i>${s.tenDangNhap || s.idSinhVien}</small>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-truncate" style="max-width: 250px;">${s.tieuDeBaiTap}</div>
+                                <span class="badge bg-primary-subtle text-primary">${s.maKhoaHoc}</span>
+                            </td>
+                            <td><small class="text-muted">${s.thoiGianNop ? new Date(s.thoiGianNop).toLocaleString('vi-VN') : '—'}</small></td>
+                            <td>
+                                <a href="/api/BaiNops/download/${s.id}" class="btn btn-sm btn-outline-danger" title="Bấm để tải tệp về máy">
+                                    <i class="bi bi-file-earmark-arrow-down me-1"></i>${fileName}
+                                </a>
+                            </td>
+                            <td>
+                                ${hasGrade
+                        ? `<span class="badge bg-success fs-6">${s.tongDiem} / 10.0</span>`
+                        : `<span class="badge bg-warning-subtle text-warning fw-bold">Chờ chấm</span>`}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm ${hasGrade ? 'btn-outline-primary' : 'btn-primary'}"
+                                        onclick="openGradeModal(${s.id}, '${s.tenSinhVien}', '${s.tieuDeBaiTap}', ${s.tongDiem ?? "''"}, '${(s.nhanXetGiangVien || '').replace(/'/g, "\\'")}')">
+                                    <i class="bi ${hasGrade ? 'bi-pencil' : 'bi-pencil-square'} me-1"></i>${hasGrade ? 'Sửa điểm' : 'Chấm điểm'}
+                                </button>
+                            </td>
+                        `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 9. Mở Modal Chấm điểm
+        function openGradeModal(submissionId, student, assignment, oldScore = '', oldFeedback = '') {
+            document.getElementById('gr_submission_id').value = submissionId;
             document.getElementById('gr_student').value = student;
             document.getElementById('gr_assignment').value = assignment;
-            document.getElementById('gr_score').value = oldScore;
+            document.getElementById('gr_score').value = oldScore !== "''" ? oldScore : '';
             document.getElementById('gr_feedback').value = oldFeedback;
 
             const modal = new bootstrap.Modal(document.getElementById('modalGrade'));
             modal.show();
         }
 
-        // 5. Lưu điểm số
-        function saveGrade(e) {
+        // 10. Lưu điểm số vào CSDL
+        async function saveGrade(e) {
             e.preventDefault();
+            const subId = document.getElementById('gr_submission_id').value;
             const score = parseFloat(document.getElementById('gr_score').value);
-            if (score < 0 || score > 10) {
+            const feedback = document.getElementById('gr_feedback').value.trim();
+
+            if (isNaN(score) || score < 0 || score > 10) {
                 alert('Điểm số không hợp lệ! Vui lòng nhập từ 0.0 đến 10.0');
                 return;
             }
 
-            if (currentScoreTargetId) {
-                const targetEl = document.getElementById(currentScoreTargetId);
-                if (targetEl) {
-                    targetEl.className = 'badge bg-success';
-                    targetEl.innerText = score.toFixed(1);
+            const payload = {
+                diemSo: score,
+                nhanXet: feedback
+            };
+
+            try {
+                const res = await fetch(`/api/BaiNops/${subId}/cham-diem`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert('Lưu kết quả chấm điểm vào CSDL thành công!');
+                    bootstrap.Modal.getInstance(document.getElementById('modalGrade')).hide();
+                    await loadSubmissionsToGrade();
+                } else {
+                    alert('Lỗi: Không thể lưu kết quả chấm điểm.');
                 }
+            } catch (err) {
+                alert('Lỗi kết nối máy chủ!');
             }
-
-            alert('Đã cập nhật điểm số và nhận xét thành công!');
-            bootstrap.Modal.getInstance(document.getElementById('modalGrade')).hide();
         }
 
-        // 6. Xử lý tải bài giảng
-        function handleAddLesson(e) {
-            e.preventDefault();
-            alert('Đã tải bài giảng lên hệ thống thành công!');
-            bootstrap.Modal.getInstance(document.getElementById('modalAddLesson')).hide();
-        }
-
-        // 7. Đăng xuất
+        // 11. Đăng xuất
         function logoutGV() {
             if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Giảng viên?")) {
                 localStorage.removeItem('currentUser');

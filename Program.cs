@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using MiniLMS.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,8 +40,16 @@ app.UseHttpsRedirection();
 // 1. Cho phép tự động tìm và chạy file index.html làm trang chủ
 app.UseDefaultFiles();
 
-// 2. Cho phép máy chủ đọc thư mục giao diện tĩnh wwwroot (HTML, CSS, JS, ảnh)
-app.UseStaticFiles();
+// 2. Cấu hình MIME type và phục vụ file tĩnh trong wwwroot (cho phép tải file lạ như .ipynb)
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".ipynb"] = "application/json";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider,
+    ServeUnknownFileTypes = true, // Phục vụ cả các định dạng file không có trong danh sách mặc định
+    DefaultContentType = "application/octet-stream"
+});
 
 app.UseCors();
 
