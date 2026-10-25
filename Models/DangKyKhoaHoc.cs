@@ -15,7 +15,8 @@ public partial class DangKyKhoaHoc
 
     public string? TrangThai { get; set; }
 
-    public virtual KhoaHoc IdKhoaHocNavigation { get; set; } = null!;
+    // Đổi thành nullable để không bị chặn validation khi nhận request POST
+    public virtual KhoaHoc? IdKhoaHocNavigation { get; set; }
 
-    public virtual NguoiDung IdSinhVienNavigation { get; set; } = null!;
+    public virtual NguoiDung? IdSinhVienNavigation { get; set; }
 }

@@ -17,5 +17,5 @@ public partial class BaiHoc
 
     public int ThuTu { get; set; }
 
-    public virtual ChuongMuc IdChuongMucNavigation { get; set; } = null!;
+    public virtual ChuongMuc? IdChuongMucNavigation { get; set; }
 }

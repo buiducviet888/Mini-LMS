@@ -27,5 +27,6 @@ public partial class KhoaHoc
 
     public virtual ICollection<DangKyKhoaHoc> DangKyKhoaHocs { get; set; } = new List<DangKyKhoaHoc>();
 
-    public virtual NguoiDung IdGiangVienNavigation { get; set; } = null!;
+    // Đổi thành nullable để tránh lỗi validation khi nhận JSON
+    public virtual NguoiDung? IdGiangVienNavigation { get; set; }
 }

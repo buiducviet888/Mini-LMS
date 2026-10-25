@@ -1,0 +1,700 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Không gian Sinh viên - Mini LMS EduConnect</title>
+
+    <!-- CHỐT CHẶN BẢO VỆ: ĐẢM BẢO CHỈ SINH VIÊN MỚI ĐƯỢC VÀO -->
+    <script>
+        (function () {
+            var raw = localStorage.getItem('currentUser');
+            if (!raw) {
+                window.location.replace('/login.html');
+                return;
+            }
+            try {
+                var u = JSON.parse(raw);
+                var r = (u.vaiTro || u.vai_tro || u.role || '').toString().toUpperCase().trim();
+                if (r.indexOf('ADMIN') !== -1 || r.indexOf('QUAN_TRI') !== -1) {
+                    window.location.replace('/index.html');
+                } else if (r.indexOf('GIANG_VIEN') !== -1 || r.indexOf('GIANGVIEN') !== -1 || r === 'GV') {
+                    window.location.replace('/giangvien.html');
+                }
+            } catch (e) {
+                localStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+            }
+        })();
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #334155;
+        }
+
+        .lms-navbar {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 1.5rem;
+            height: 60px;
+        }
+
+        .lms-nav-link {
+            color: #475569;
+            font-weight: 500;
+            padding: 18px 16px;
+            text-decoration: none;
+            display: inline-block;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+            .lms-nav-link:hover, .lms-nav-link.active {
+                color: #dc2626;
+                border-bottom: 3px solid #dc2626;
+            }
+
+        .avatar-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background-color: #e2e8f0;
+            color: #475569;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .course-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #ffffff;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+            .course-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            }
+
+        .course-banner {
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            position: relative;
+        }
+
+        .banner-blue {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+
+        .banner-teal {
+            background: linear-gradient(135deg, #0284c7 0%, #0d9488 100%);
+        }
+
+        .banner-orange {
+            background: linear-gradient(135deg, #f97316 0%, #f43f5e 100%);
+        }
+
+        .table-custom th {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .course-toc {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+            .course-toc .toc-item {
+                padding: 10px 16px;
+                border-bottom: 1px solid #f1f5f9;
+                color: #475569;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+            }
+
+                .course-toc .toc-item:hover, .course-toc .toc-item.active {
+                    background-color: #fef2f2;
+                    color: #dc2626;
+                    font-weight: 600;
+                }
+
+                .course-toc .toc-item i {
+                    margin-right: 10px;
+                    font-size: 1.1rem;
+                }
+    </style>
+</head>
+<body>
+
+    <!-- TOP NAVIGATION -->
+    <header class="lms-navbar d-flex justify-content-between align-items-center shadow-sm">
+        <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center me-4 text-danger fw-bold fs-5">
+                <i class="bi bi-mortarboard-fill me-2 fs-4"></i> EduConnect
+            </div>
+            <nav class="d-flex">
+                <a class="lms-nav-link" onclick="switchMainTab('dashboard', this)">Dashboard</a>
+                <a class="lms-nav-link active" onclick="switchMainTab('mycourses', this)">My courses</a>
+                <a class="lms-nav-link" onclick="switchMainTab('results', this)">Learning results</a>
+            </nav>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-light rounded-circle p-2 text-muted"><i class="bi bi-bell"></i></button>
+            <button class="btn btn-light rounded-circle p-2 text-muted"><i class="bi bi-chat-left-dots"></i></button>
+
+            <div class="dropdown">
+                <div class="d-flex align-items-center gap-2 cursor-pointer" data-bs-toggle="dropdown">
+                    <div class="avatar-circle" id="userAvatarText">SV</div>
+                    <span class="small fw-semibold d-none d-md-inline" id="userFullnameTop">Sinh viên</span>
+                    <i class="bi bi-chevron-down small text-muted"></i>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                    <li class="px-3 py-2 small text-muted border-bottom">
+                        <div class="fw-bold text-dark" id="userDropdownName">Sinh viên</div>
+                        <small>Sinh viên</small>
+                    </li>
+                    <li><a class="dropdown-item py-2 small text-danger" href="javascript:void(0);" onclick="logoutStudent()"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <div class="container py-4">
+
+        <!-- TAB 1: MY COURSES -->
+        <section id="tab-mycourses" style="display: block;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="fw-bold text-danger mb-1">My courses</h3>
+                    <p class="text-muted small mb-0">Course overview</p>
+                </div>
+                <!-- NÚT MỞ MODAL ĐĂNG KÝ HỌC PHẦN -->
+                <button class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#enrollModal" onclick="loadAvailableCourses()">
+                    <i class="bi bi-plus-circle me-1"></i> Đăng ký môn học
+                </button>
+            </div>
+
+            <!-- Bộ lọc tìm kiếm -->
+            <div class="row g-2 mb-4 align-items-center">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm">
+                        <option selected>Sort By Course Name</option>
+                        <option>Sort By Last Accessed</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Search...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sách Card Môn học (Load động từ CSDL) -->
+            <div class="row g-4" id="courseCardsContainer">
+                <div class="col-12 text-center py-5 text-muted">
+                    <div class="spinner-border text-danger spinner-border-sm me-2" role="status"></div>
+                    Đang tải danh sách môn học của bạn từ hệ thống...
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CHI TIẾT MÔN HỌC & NỘP BÀI / TÀI LIỆU -->
+        <section id="tab-coursedetail" style="display: none;">
+            <div class="d-flex align-items-center mb-3">
+                <button class="btn btn-sm btn-outline-secondary me-3" onclick="backToCourses()">
+                    <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="javascript:void(0);" onclick="backToCourses()" class="text-decoration-none">My courses</a></li>
+                        <li class="breadcrumb-item active" id="detailBreadcrumb">Môn học</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="card border-0 rounded-3 mb-4 text-white p-4 banner-blue">
+                <h4 class="fw-bold mb-1" id="detailCourseTitle">Chi tiết môn học</h4>
+                <p class="mb-0 opacity-75" id="detailInstructor">Giảng viên phụ trách</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-3">
+                    <div class="course-toc shadow-sm">
+                        <div class="p-3 fw-bold border-bottom text-danger">Mục lục khóa học</div>
+                        <div class="toc-item" onclick="switchDetailSection('info')"><i class="bi bi-info-circle"></i>Thông tin chung</div>
+                        <div class="toc-item" onclick="switchDetailSection('forum')"><i class="bi bi-chat-dots"></i>Diễn đàn môn học</div>
+                        <div class="toc-item active" onclick="switchDetailSection('assignment')"><i class="bi bi-file-earmark-check"></i>Bài tập quá trình</div>
+                        <div class="toc-item" onclick="switchDetailSection('doc')"><i class="bi bi-folder2-open"></i>Tài liệu học tập</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- KHU VỰC 1: BÀI TẬP QUÁ TRÌNH -->
+                    <div id="detail-section-assignment" class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
+                        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+                            <h5 class="fw-bold mb-0">Bài tập quá trình (Giai đoạn WBS & Trello Kanban)</h5>
+                            <span class="badge bg-warning-subtle text-warning">Hạn nộp: 23:59 30/10/2026</span>
+                        </div>
+
+                        <p class="text-muted small">
+                            Sinh viên hoàn thiện bản phân rã cấu trúc WBS và tạo bảng Trello Kanban theo đề tài nhóm đã đăng ký. Đóng gói báo cáo PDF hoặc nộp kèm link bảng theo quy định.
+                        </p>
+
+                        <div class="table-responsive mb-4">
+                            <table class="table table-bordered table-sm align-middle">
+                                <tbody>
+                                    <tr>
+                                        <th class="bg-light" style="width: 25%;">Trạng thái nộp bài</th>
+                                        <td id="sub_status"><span class="badge bg-success-subtle text-success">Đã nộp bài để chấm</span></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="bg-light">Trạng thái chấm điểm</th>
+                                        <td id="sub_grade"><span class="badge bg-secondary">Chưa chấm điểm</span></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="bg-light">Tệp tin bài nộp</th>
+                                        <td id="sub_file"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>BaoCao_WBS_Nhom8.pdf</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="bg-light">Lời nhận xét của GV</th>
+                                        <td id="sub_feedback" class="text-muted fst-italic">Chưa có nhận xét từ giảng viên</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="p-3 bg-light rounded-3 border">
+                            <h6 class="fw-bold mb-2"><i class="bi bi-cloud-arrow-up me-1"></i>Cập nhật hoặc Nộp bài mới</h6>
+                            <form id="submitAssignmentForm" onsubmit="handleSubmitAssignment(event)">
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Chọn tệp tin báo cáo (.pdf, .zip, .docx):</label>
+                                    <input type="file" class="form-control form-control-sm" id="inputFileUpload" required>
+                                </div>
+                                <button type="submit" class="btn btn-danger btn-sm px-3">
+                                    <i class="bi bi-upload me-1"></i>Tải lên bài nộp
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- KHU VỰC 2: TÀI LIỆU HỌC TẬP -->
+                    <div id="detail-section-doc" class="card border-0 shadow-sm rounded-3 p-4 bg-white" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+                            <h5 class="fw-bold mb-0 text-danger"><i class="bi bi-folder2-open me-2"></i>Tài liệu & Học liệu môn học</h5>
+                            <span class="badge bg-secondary-subtle text-dark">Học liệu chính khóa</span>
+                        </div>
+                        <div id="materialsContainer">
+                            <!-- Nạp danh sách chương mục và bài học từ CSDL -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: LEARNING RESULTS -->
+        <section id="tab-results" style="display: none;">
+            <div class="card border-0 shadow-sm rounded-3 bg-white p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                    <div>
+                        <h4 class="fw-bold text-danger mb-1">Learning results</h4>
+                        <p class="text-muted small mb-0">Bảng theo dõi tiến độ và kết quả học tập cá nhân</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="alert('Đã xuất file bảng điểm PDF!')">
+                        <i class="bi bi-printer me-1"></i>In bảng điểm
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle table-custom text-center mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-start" style="width: 40%;">Tên khóa</th>
+                                <th style="width: 15%;">Tỷ lệ hoàn thành</th>
+                                <th style="width: 15%;">Bài tập quá trình</th>
+                                <th style="width: 15%;">Thí nghiệm thực hành</th>
+                                <th style="width: 15%;">Bài tập thu hoạch</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Đang cập nhật bảng điểm...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- MODAL ĐĂNG KÝ HỌC PHẦN (LẤY TỪ BẢNG KHOA_HOC) -->
+    <div class="modal fade" id="enrollModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Cổng Đăng Ký Học Phần - HK1-2026</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3 bg-light border-bottom small text-muted">
+                        <i class="bi bi-info-circle me-1 text-primary"></i> Danh sách các học phần được khởi tạo từ hệ thống. Sinh viên lựa chọn môn học để ghi danh.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã môn</th>
+                                    <th>Tên môn học</th>
+                                    <th>Học kỳ</th>
+                                    <th>Giảng viên</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="availableCoursesBody">
+                                <tr>
+                                    <td colspan="5" class="text-center py-3 text-muted">Đang tải danh sách môn học từ CSDL...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 1. Nạp thông tin tài khoản Sinh viên từ Session
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionData = localStorage.getItem('currentUser');
+            if (sessionData) {
+                try {
+                    const user = JSON.parse(sessionData);
+                    const name = user.hoVaTen || user.tenDangNhap || 'Sinh viên';
+                    document.getElementById('userFullnameTop').innerText = name;
+                    document.getElementById('userDropdownName').innerText = name;
+
+                    const words = name.trim().split(' ');
+                    const initials = words.length > 1 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+                    document.getElementById('userAvatarText').innerText = initials;
+                } catch (e) {
+                    console.error("Lỗi phân tích session:", e);
+                }
+            }
+            loadStudentCourses();
+        });
+
+        // 2. Tải danh sách môn mở từ API CSDL để sinh viên đăng ký
+        async function loadAvailableCourses() {
+            const tbody = document.getElementById('availableCoursesBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Đang tải danh sách môn học...</td></tr>';
+
+            try {
+                const res = await fetch('/api/KhoaHocs');
+                if (res.ok) {
+                    const list = await res.json();
+                    if (list.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Hiện chưa có môn học nào được mở!</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = '';
+                    list.forEach(c => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                                <td><span class="badge bg-secondary-subtle text-dark">${c.maKhoaHoc}</span></td>
+                                <td class="fw-semibold">${c.tenKhoaHoc}</td>
+                                <td>${c.hocKy}</td>
+                                <td>Giảng viên ID: ${c.idGiangVien}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="enrollCourse(${c.id}, '${c.tenKhoaHoc}', '${c.maKhoaHoc}')">
+                                        <i class="bi bi-check2-circle me-1"></i>Đăng ký
+                                    </button>
+                                </td>
+                            `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-danger">Không thể tải danh sách môn học từ máy chủ.</td></tr>';
+                }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-danger">Lỗi kết nối máy chủ!</td></tr>';
+            }
+        }
+
+        // 3. Tải danh sách các môn mà sinh viên này THỰC SỰ đã đăng ký từ SQL Server
+        async function loadStudentCourses() {
+            const rawUser = localStorage.getItem('currentUser');
+            if (!rawUser) return;
+            const student = JSON.parse(rawUser);
+            const studentId = student.id || 3;
+
+            const container = document.getElementById('courseCardsContainer');
+            const resultsTbody = document.getElementById('resultsTableBody');
+
+            try {
+                const res = await fetch(`/api/DangKyKhoaHocs/sinhvien/${studentId}`);
+                if (res.ok) {
+                    const registeredCourses = await res.json();
+
+                    if (registeredCourses.length === 0) {
+                        container.innerHTML = `
+                                <div class="col-12 text-center py-5">
+                                    <i class="bi bi-journal-x fs-1 text-muted"></i>
+                                    <p class="text-muted mt-2">Bạn chưa đăng ký môn học nào. Hãy bấm "Đăng ký môn học" ở góc trên!</p>
+                                </div>
+                            `;
+                        resultsTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Chưa có kết quả học tập.</td></tr>';
+                        return;
+                    }
+
+                    container.innerHTML = '';
+                    resultsTbody.innerHTML = '';
+
+                    registeredCourses.forEach((c, index) => {
+                        const banners = ['banner-blue', 'banner-teal', 'banner-orange'];
+                        const bannerClass = banners[index % banners.length];
+
+                        // Vẽ Card ở Tab "My courses" - truyền đúng ID môn học
+                        const col = document.createElement('div');
+                        col.className = 'col-md-6 col-lg-4';
+                        col.innerHTML = `
+                                <div class="course-card h-100" onclick="openCourseDetail('${c.maKhoaHoc}', '${c.tenKhoaHoc}', 'Giảng viên ID: ${c.idGiangVien}', ${c.idKhoaHoc})">
+                                    <div class="course-banner ${bannerClass}">
+                                        <i class="bi bi-mortarboard-fill fs-1 opacity-75"></i>
+                                    </div>
+                                    <div class="p-3">
+                                        <span class="badge bg-primary-subtle text-primary small mb-1">${c.hocKy || 'HK1-2026'}</span>
+                                        <h6 class="fw-bold mb-1 text-truncate">${c.maKhoaHoc} - ${c.tenKhoaHoc}</h6>
+                                        <p class="text-muted small mb-3"><i class="bi bi-person me-1"></i>Giảng viên ID: ${c.idGiangVien}</p>
+
+                                        <div class="d-flex justify-content-between small text-muted mb-1">
+                                            <span>Trạng thái: <strong>${c.trangThai || 'DANG_HOC'}</strong></span>
+                                            <span class="fw-bold text-primary">0%</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-primary" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        container.appendChild(col);
+
+                        // Vẽ dòng dữ liệu ở Tab "Learning results"
+                        const trResult = document.createElement('tr');
+                        trResult.innerHTML = `
+                                <td class="text-start fw-semibold text-danger">${c.maKhoaHoc} - ${c.tenKhoaHoc}</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary">0%</span></td>
+                                <td class="fw-bold text-muted">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            `;
+                        resultsTbody.appendChild(trResult);
+                    });
+                }
+            } catch (e) {
+                console.error("Lỗi nạp môn học sinh viên:", e);
+            }
+        }
+
+        // 4. Xử lý ghi nhận đăng ký học phần lên API
+        async function enrollCourse(courseId, courseName, courseCode) {
+            const rawUser = localStorage.getItem('currentUser');
+            if (!rawUser) {
+                alert("Vui lòng đăng nhập lại!");
+                window.location.replace('/login.html');
+                return;
+            }
+            const student = JSON.parse(rawUser);
+
+            const payload = {
+                idKhoaHoc: parseInt(courseId),
+                idSinhVien: parseInt(student.id || 3),
+                trangThai: 'DANG_HOC'
+            };
+
+            try {
+                const res = await fetch('/api/DangKyKhoaHocs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert(`Chúc mừng! Bạn đã đăng ký thành công môn học: ${courseCode} - ${courseName}!`);
+                    const modalEl = document.getElementById('enrollModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    await loadStudentCourses();
+                } else {
+                    const errData = await res.json().catch(() => null);
+                    const msg = (errData && errData.message) ? errData.message : 'Bạn đã đăng ký học phần này trước đó rồi!';
+                    alert(msg);
+                    const modalEl = document.getElementById('enrollModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    await loadStudentCourses();
+                }
+            } catch (err) {
+                alert('Không thể kết nối đến máy chủ API!');
+            }
+        }
+
+        // 5. Chuyển đổi giữa các Tab chính (Dashboard / My courses / Results)
+        function switchMainTab(tabId, element) {
+            document.querySelectorAll('.lms-nav-link').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            document.getElementById('tab-mycourses').style.display = 'none';
+            document.getElementById('tab-coursedetail').style.display = 'none';
+            document.getElementById('tab-results').style.display = 'none';
+
+            if (tabId === 'mycourses' || tabId === 'dashboard') {
+                document.getElementById('tab-mycourses').style.display = 'block';
+            } else if (tabId === 'results') {
+                document.getElementById('tab-results').style.display = 'block';
+            }
+        }
+
+        // 6. Mở xem chi tiết môn học (Lưu ID môn học để tải tài liệu)
+        let currentSelectedCourseId = null;
+
+        function openCourseDetail(code, name, instructor, courseId) {
+            currentSelectedCourseId = courseId || 1;
+            document.getElementById('tab-mycourses').style.display = 'none';
+            document.getElementById('tab-results').style.display = 'none';
+            document.getElementById('tab-coursedetail').style.display = 'block';
+
+            document.getElementById('detailBreadcrumb').innerText = code;
+            document.getElementById('detailCourseTitle').innerText = `${code} - ${name}`;
+            document.getElementById('detailInstructor').innerText = `Giảng viên phụ trách: ${instructor}`;
+
+            switchDetailSection('assignment');
+        }
+
+        // 7. Quay lại danh sách môn học
+        function backToCourses() {
+            document.getElementById('tab-coursedetail').style.display = 'none';
+            document.getElementById('tab-mycourses').style.display = 'block';
+        }
+
+        // 8. Chuyển mục lục trong môn học
+        function switchDetailSection(section) {
+            document.querySelectorAll('.course-toc .toc-item').forEach(el => el.classList.remove('active'));
+
+            const secAssignment = document.getElementById('detail-section-assignment');
+            const secDoc = document.getElementById('detail-section-doc');
+
+            if (section === 'doc') {
+                if (secAssignment) secAssignment.style.display = 'none';
+                if (secDoc) secDoc.style.display = 'block';
+                loadCourseMaterials(currentSelectedCourseId);
+            } else {
+                if (secDoc) secDoc.style.display = 'none';
+                if (secAssignment) secAssignment.style.display = 'block';
+            }
+        }
+
+        // 9. Gọi API nạp tài liệu học tập từ CSDL
+        async function loadCourseMaterials(courseId) {
+            const container = document.getElementById('materialsContainer');
+            container.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải tài liệu học tập...</div>';
+
+            try {
+                const res = await fetch(`/api/KhoaHocs/${courseId}/tai-lieu`);
+                if (res.ok) {
+                    const chapters = await res.json();
+                    if (chapters.length === 0) {
+                        container.innerHTML = '<div class="alert alert-light border text-muted">Môn học này hiện chưa có bài giảng/tài liệu nào được tải lên.</div>';
+                        return;
+                    }
+
+                    container.innerHTML = '';
+                    chapters.forEach(ch => {
+                        let lessonsHtml = '';
+                        if (ch.baiHocs && ch.baiHocs.length > 0) {
+                            lessonsHtml = ch.baiHocs.map(b => {
+                                let icon = 'bi-file-earmark-text text-secondary';
+                                if (b.loaiNoiDung === 'PDF') icon = 'bi-file-earmark-pdf text-danger';
+                                else if (b.loaiNoiDung === 'SLIDE') icon = 'bi-file-earmark-slides text-warning';
+                                else if (b.loaiNoiDung === 'VIDEO') icon = 'bi-play-circle-fill text-primary';
+
+                                return `
+                                        <div class="d-flex justify-content-between align-items-center py-2 px-3 border-bottom bg-white rounded-2 mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi ${icon} fs-4 me-3"></i>
+                                                <div>
+                                                    <div class="fw-semibold text-dark">${b.tieuDe}</div>
+                                                    <span class="badge bg-light text-muted border">${b.loaiNoiDung}</span>
+                                                </div>
+                                            </div>
+                                            <a href="${b.duongDanTaiLieu || '#'}" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                <i class="bi bi-download me-1"></i>Xem / Tải về
+                                            </a>
+                                        </div>
+                                    `;
+                            }).join('');
+                        } else {
+                            lessonsHtml = '<p class="text-muted small fst-italic px-3">Chưa có bài học trong chương này.</p>';
+                        }
+
+                        const chBlock = document.createElement('div');
+                        chBlock.className = 'mb-4';
+                        chBlock.innerHTML = `
+                                <h6 class="fw-bold text-dark pb-2 border-bottom"><i class="bi bi-bookmark-check text-danger me-2"></i>${ch.tenChuong}</h6>
+                                <div class="mt-2 bg-light p-2 rounded-3">${lessonsHtml}</div>
+                            `;
+                        container.appendChild(chBlock);
+                    });
+                }
+            } catch (err) {
+                container.innerHTML = '<div class="alert alert-danger">Không thể tải tài liệu từ máy chủ API!</div>';
+            }
+        }
+
+        // 10. Xử lý tải lên bài nộp
+        function handleSubmitAssignment(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('inputFileUpload');
+            if (fileInput.files.length > 0) {
+                const fileName = fileInput.files[0].name;
+                document.getElementById('sub_status').innerHTML = '<span class="badge bg-success-subtle text-success">Đã nộp bài để chấm</span>';
+                document.getElementById('sub_file').innerHTML = `<i class="bi bi-file-earmark-check text-success me-1"></i>${fileName}`;
+                alert(`Tải lên bài tập "${fileName}" thành công!`);
+                fileInput.value = '';
+            }
+        }
+
+        // 11. Đăng xuất
+        function logoutStudent() {
+            if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+                localStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+            }
+        }
+    </script>
+</body>
+</html>

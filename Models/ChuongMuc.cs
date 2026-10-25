@@ -15,5 +15,6 @@ public partial class ChuongMuc
 
     public virtual ICollection<BaiHoc> BaiHocs { get; set; } = new List<BaiHoc>();
 
-    public virtual KhoaHoc IdKhoaHocNavigation { get; set; } = null!;
+    // Đổi thành nullable để không bị chặn validation khi gửi JSON POST
+    public virtual KhoaHoc? IdKhoaHocNavigation { get; set; }
 }
