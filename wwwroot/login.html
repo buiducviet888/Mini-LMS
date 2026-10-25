@@ -1,0 +1,144 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Mini LMS EduConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.35);
+        }
+    </style>
+</head>
+<body>
+    <div class="card login-card p-4 bg-white">
+        <div class="text-center mb-4">
+            <i class="bi bi-mortarboard-fill text-primary" style="font-size: 3rem;"></i>
+            <h3 class="fw-bold mt-2 mb-1">EduConnect LMS</h3>
+            <p class="text-muted small">Cổng thông tin đào tạo và học trực tuyến</p>
+        </div>
+
+        <div id="errorAlert" class="alert alert-danger d-none py-2 small" role="alert"></div>
+
+        <form id="loginForm">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Tài khoản / Email</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control" id="username" placeholder="Nhập tên đăng nhập hoặc email" required>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-semibold">Mật khẩu</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" id="password" placeholder="Nhập mật khẩu" required>
+                </div>
+            </div>
+            <button type="submit" id="btnSubmit" class="btn btn-primary w-100 py-2 fw-semibold rounded-3">
+                Đăng nhập
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // Kiểm tra điều hướng dựa trên vai trò
+        function redirectByRole(role) {
+            const cleanRole = (role || '').toString().toUpperCase().trim();
+            console.log("Vai trò sau khi chuẩn hóa:", cleanRole);
+
+            if (cleanRole.includes('GIANG_VIEN') || cleanRole.includes('GIANGVIEN') || cleanRole === 'GV') {
+                window.location.replace('/giangvien.html');
+            } else if (cleanRole.includes('SINH_VIEN') || cleanRole.includes('SINHVIEN') || cleanRole === 'SV') {
+                window.location.replace('/sinhvien.html');
+            } else if (cleanRole.includes('ADMIN') || cleanRole.includes('QUAN_TRI')) {
+                window.location.replace('/index.html');
+            } else {
+                window.location.replace('/index.html');
+            }
+        }
+
+        // Tự động chuyển hướng nếu người dùng đã có phiên đăng nhập
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionUser = localStorage.getItem('currentUser');
+            if (sessionUser) {
+                try {
+                    const user = JSON.parse(sessionUser);
+                    const role = user.vaiTro || user.vai_tro || user.role;
+                    if (role) {
+                        redirectByRole(role);
+                    }
+                } catch (e) {
+                    localStorage.removeItem('currentUser');
+                }
+            }
+        });
+
+        // Xử lý gửi form đăng nhập
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errDiv = document.getElementById('errorAlert');
+            const btn = document.getElementById('btnSubmit');
+            errDiv.classList.add('d-none');
+            btn.disabled = true;
+            btn.innerText = 'Đang kiểm tra...';
+
+            const payload = {
+                tenDangNhap: document.getElementById('username').value.trim(),
+                matKhau: document.getElementById('password').value
+            };
+
+            try {
+                const res = await fetch('/api/NguoiDungs/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    errDiv.innerText = data.message || 'Tài khoản hoặc mật khẩu không chính xác!';
+                    errDiv.classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.innerText = 'Đăng nhập';
+                    return;
+                }
+
+                // Nhận diện dữ liệu người dùng trả về từ API
+                const user = data.user || data;
+
+                // Lưu thông tin người dùng vào LocalStorage
+                localStorage.setItem('currentUser', JSON.stringify(user));
+
+                // Lấy vai trò bất kể Backend đặt tên là vaiTro hay vai_tro
+                const role = user.vaiTro || user.vai_tro || user.role;
+
+                // Thực hiện điều hướng chính xác
+                redirectByRole(role);
+
+            } catch (err) {
+                console.error("Lỗi đăng nhập:", err);
+                errDiv.innerText = 'Lỗi kết nối tới máy chủ API!';
+                errDiv.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerText = 'Đăng nhập';
+            }
+        });
+    </script>
+</body>
+</html>
